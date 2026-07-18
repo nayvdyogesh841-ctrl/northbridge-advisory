@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BackgroundPaths } from "@/components/BackgroundPaths";
+import { BackgroundPathsLayer } from "@/components/FloatingPaths";
 import { Eyebrow } from "@/components/Eyebrow";
 import { Reveal } from "@/components/Reveal";
 import { WordReveal } from "@/components/WordReveal";
@@ -13,12 +13,10 @@ import { fadeUp, staggerContainer, viewportOnce } from "@/lib/motion";
 export function WhyUs() {
   return (
     <Section id="why-us" className="relative overflow-hidden">
-      <BackgroundPaths
-        direction={1}
-        count={16}
-        opacity={0.32}
-        className="scale-125 [mask-image:radial-gradient(60%_65%_at_88%_12%,#000,transparent_70%)]"
-      />
+      {/* Canonical 21st.dev "Background Paths" as a decorative section backdrop —
+          full-bleed, ~10% opacity, faded top & bottom so it dissolves into the
+          neighbouring sections. Behind all content, non-interactive. */}
+      <BackgroundPathsLayer className="-z-10 opacity-[0.28] [mask-image:linear-gradient(to_bottom,transparent,#000_18%,#000_78%,transparent)]" />
       <div className="max-w-2xl">
         <Reveal>
           <Eyebrow>Why choose us</Eyebrow>
