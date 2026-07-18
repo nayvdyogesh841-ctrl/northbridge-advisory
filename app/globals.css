@@ -1,0 +1,479 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Graphite & Silk — soft-black stage that lets the Clarity Stream's
+     crimson/violet silk be the only color on the site. */
+  --bg: #0b0b0d;
+  --surface: #141417;
+  --ink: #f2f0eb;
+  --ink-muted: #97938b;
+  --line: rgba(242, 240, 235, 0.1);
+  --accent: #f2f0eb;
+  --accent-fg: #121214;
+  /* Depth undertones (rgb triplets) — cool navy + an ember echo of the scene. */
+  --depth-ink: 242, 240, 235;
+  --depth-navy: 99, 91, 255;
+  --depth-ember: 224, 82, 92;
+}
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: var(--ink);
+    color: var(--bg);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
+
+@layer components {
+  .container-x {
+    @apply mx-auto w-full max-w-container px-container-x;
+  }
+
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-eyebrow font-medium uppercase text-ink-muted;
+  }
+
+  .display-balance {
+    text-wrap: balance;
+  }
+
+  /* Liquid Glass on graphite — luminous edge-lit panels (VisionOS at night):
+     - deep backdrop blur lifts whatever glows behind (the silk, the blooms),
+     - a bright specular line along the top edge catches the light,
+     - the fill stays quiet so the glass reads as material, not milk. */
+  .glass {
+    background-color: rgba(255, 255, 255, 0.07);
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-top-color: rgba(255, 255, 255, 0.32);
+    box-shadow:
+      inset 0 1px 0.5px rgba(255, 255, 255, 0.22),
+      0 20px 48px -26px rgba(0, 0, 0, 0.6);
+  }
+
+  /* Links draw their own underline from the left on hover — no layout shift,
+     no permanent rule cluttering the page. */
+  .link-underline {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    background-size: 0% 1px;
+    transition: background-size 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    padding-bottom: 1px;
+  }
+  .link-underline:hover,
+  .link-underline:focus-visible {
+    background-size: 100% 1px;
+  }
+
+  /* Quieter sibling of .glass for chips floating over the live scene. */
+  .glass-dark {
+    background-color: rgba(20, 20, 23, 0.42);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-top-color: rgba(255, 255, 255, 0.3);
+    box-shadow:
+      inset 0 1px 0.5px rgba(255, 255, 255, 0.2),
+      0 18px 40px -18px rgba(0, 0, 0, 0.65);
+  }
+
+  /* Cursor-lit glass cards (services bento): a soft light pool follows the
+     pointer via --mx/--my set from a single pointermove handler. */
+  .glow-card {
+    position: relative;
+  }
+  .glow-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    background: radial-gradient(
+      340px circle at var(--mx, 50%) var(--my, 50%),
+      rgba(242, 240, 235, 0.07),
+      transparent 65%
+    );
+  }
+  .glow-card:hover::before {
+    opacity: 1;
+  }
+
+  /* --- Liquid Light — the hero's silk as a soft iridescent reflection that
+     travels INSIDE the material (clipped by the host, never a border). Two
+     blurred layers flow via transform only. Hero-tinted: ember/platinum/violet.
+     Animations are paused by default (see per-variant + JS gating below). --- */
+  .liquid {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .liquid > .liquid-content {
+    position: relative;
+    z-index: 1; /* real content always above the light */
+  }
+  .liquid__light {
+    position: absolute;
+    inset: -25%;
+    z-index: 0;
+    pointer-events: none;
+    transition: opacity 0.55s ease;
+    transform: translate3d(
+      calc((var(--lx, 0.5) - 0.5) * 12%),
+      calc((var(--ly, 0.5) - 0.5) * 12%),
+      0
+    );
+    will-change: transform, opacity;
+  }
+  .liquid__light span {
+    position: absolute;
+    inset: 0;
+    display: block;
+    animation-play-state: paused; /* only runs when hovered / on screen */
+    will-change: transform;
+  }
+  .liquid__blobs {
+    background:
+      radial-gradient(38% 52% at 28% 42%, rgba(var(--depth-ember), 0.6), transparent 62%),
+      radial-gradient(42% 50% at 68% 56%, rgba(var(--depth-navy), 0.55), transparent 64%),
+      radial-gradient(32% 42% at 50% 50%, rgba(var(--depth-ink), 0.5), transparent 58%);
+    filter: blur(16px);
+    animation: liquid-flow 9s ease-in-out infinite alternate;
+  }
+  .liquid__bands {
+    background: repeating-linear-gradient(
+      118deg,
+      transparent 0 9px,
+      rgba(var(--depth-ink), 0.1) 9px 10px,
+      transparent 10px 22px
+    );
+    filter: blur(2.5px);
+    opacity: 0.5;
+    animation: liquid-bands 8s linear infinite;
+  }
+  /* Dark surfaces — additive glow (the true reference look). */
+  .liquid--card,
+  .liquid--panel {
+    mix-blend-mode: screen;
+    opacity: 0.5;
+  }
+  .liquid:hover .liquid--card,
+  .liquid:hover .liquid--panel {
+    opacity: 0.82;
+  }
+  /* Light surfaces (primary buttons) — a tinted sheen, hover only. */
+  .liquid--button {
+    mix-blend-mode: overlay;
+    opacity: 0;
+  }
+  .liquid:hover .liquid--button {
+    opacity: 1;
+  }
+  .liquid:hover .liquid--button span {
+    animation-play-state: running;
+  }
+  @keyframes liquid-flow {
+    0% {
+      transform: translate3d(-5%, -3%, 0) rotate(-5deg) scale(1.15);
+    }
+    50% {
+      transform: translate3d(4%, 2%, 0) rotate(4deg) scale(1.25);
+    }
+    100% {
+      transform: translate3d(6%, 4%, 0) rotate(7deg) scale(1.18);
+    }
+  }
+  @keyframes liquid-bands {
+    0% {
+      transform: translate3d(-8%, 0, 0);
+    }
+    100% {
+      transform: translate3d(8%, 0, 0);
+    }
+  }
+
+  /* Small glass elements gently lift and brighten on hover — a tactile catch of
+     light, nothing more. */
+  /* Small pills skip backdrop-blur entirely (a translucent fill reads the same
+     at this size) — removes ~6 blur layers from the hero for a real paint win. */
+  .glass-pill {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background-color: rgba(255, 255, 255, 0.05);
+    box-shadow: inset 0 1px 0.5px rgba(255, 255, 255, 0.18);
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .glass-pill:hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* Hide scrollbar for marquee track while keeping accessibility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Hero atmosphere — one cohesive lighting design (monochrome, GPU-only).
+   Read like a photographed studio backdrop: a soft light falls from the top,
+   the headline sits in a gentle bloom, and the frame settles at the edges.
+   Every value is tuned to be *felt*, never noticed.
+--------------------------------------------------------------------------- */
+
+/* The stage: warm top-light that settles into deeper tone at the base & corners.
+   This single layer carries most of the perceived depth. */
+.hero-stage {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    /* a soft ceiling light over the headline */
+    radial-gradient(90% 60% at 50% 0%, rgba(var(--depth-ink), 0.09), transparent 55%),
+    /* ember + violet blooms low in the frame, where the silk will flow */
+    radial-gradient(60% 42% at 24% 88%, rgba(var(--depth-ember), 0.1), transparent 70%),
+    radial-gradient(56% 40% at 78% 86%, rgba(var(--depth-navy), 0.1), transparent 72%);
+}
+
+/* Corner settle — pulls the frame down into true black around the edges. */
+.hero-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 90% at 50% 40%,
+    transparent 55%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+}
+
+/* Grain — a tactile film texture, like premium print stock. */
+.hero-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* The signature moment: a quiet volumetric bloom the headline sits inside,
+   breathing almost imperceptibly so the light feels alive. */
+.hero-glow {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    46% 38% at 50% 30%,
+    rgba(var(--depth-ink), 0.1),
+    rgba(var(--depth-ink), 0.04) 45%,
+    transparent 70%
+  );
+  transform-origin: 50% 30%;
+  will-change: opacity, transform;
+  /* Expand softly on load, then breathe. */
+  animation:
+    hero-glow-in 1.4s cubic-bezier(0.22, 1, 0.36, 1) both,
+    hero-breathe 13s ease-in-out 1.4s infinite;
+}
+
+@keyframes hero-glow-in {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+}
+
+@keyframes hero-breathe {
+  0%,
+  100% {
+    opacity: 0.78;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.055);
+  }
+}
+
+/* Two slow-drifting light pools — barely-perceptible ambient movement. */
+.hero-drift {
+  position: absolute;
+  inset: -20% 0 auto 0;
+  z-index: -1;
+  height: 780px;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 42% at 24% 26%, rgba(var(--depth-ink), 0.08), transparent 70%),
+    radial-gradient(34% 40% at 78% 18%, rgba(var(--depth-navy), 0.08), transparent 72%);
+  will-change: transform;
+  animation: hero-drift 30s ease-in-out infinite alternate;
+}
+
+@keyframes hero-drift {
+  from {
+    transform: translate3d(-2.5%, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(2.5%, 1.5%, 0) scale(1.07);
+  }
+}
+
+/* One large, out-of-focus organic form — a second depth plane drifting opposite
+   the pools for gentle parallax. Navy-tinted, heavily blurred. */
+.hero-orb {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  width: min(50vw, 660px);
+  aspect-ratio: 1.25 / 1;
+  border-radius: 60% 40% 55% 45% / 55% 50% 50% 45%;
+  filter: blur(70px);
+  background: radial-gradient(
+    closest-side,
+    rgba(var(--depth-navy), 0.12),
+    rgba(var(--depth-ink), 0.05) 58%,
+    transparent
+  );
+  will-change: transform;
+  animation: hero-orb 38s ease-in-out infinite alternate;
+}
+
+@keyframes hero-orb {
+  from {
+    transform: translate3d(-4%, -2%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(4%, 3%, 0) scale(1.08);
+  }
+}
+
+/* Architectural hairline grid — fades in from the top on load, then settles
+   quietly into the background. Follows the cursor faintly (nearest depth plane
+   after the arc). */
+.hero-grid {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(242, 240, 235, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(242, 240, 235, 0.05) 1px, transparent 1px);
+  background-size: 74px 74px;
+  /* Concentrated at the very top; fades out before it reaches the headline. */
+  mask-image: radial-gradient(84% 50% at 50% 0%, #000 0%, #000 22%, transparent 64%);
+  -webkit-mask-image: radial-gradient(84% 50% at 50% 0%, #000 0%, #000 22%, transparent 64%);
+  opacity: 0;
+  transform: translate3d(calc(var(--px, 0) * -6px), calc(var(--py, 0) * -5px), 0);
+  will-change: transform, opacity;
+  animation: hero-grid-in 1.9s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+}
+
+@keyframes hero-grid-in {
+  0% {
+    opacity: 0;
+  }
+  /* More readable through the first ~second... */
+  45% {
+    opacity: 1;
+  }
+  /* ...then settles to a subtle, architectural rest. */
+  100% {
+    opacity: 0.62;
+  }
+}
+
+/* Soft architectural geometry on the right — two faint concentric rings, mostly
+   off-frame. Reads as structure/depth, not a graphic. Strongest parallax plane. */
+.hero-arch {
+  position: absolute;
+  top: 50%;
+  right: -150px;
+  width: 560px;
+  height: 560px;
+  margin-top: -280px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--depth-ink), 0.05);
+  opacity: 0;
+  transform: translate3d(calc(var(--px, 0) * 14px), calc(var(--py, 0) * 12px), 0);
+  will-change: transform, opacity;
+  animation: hero-arch-in 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.35s forwards;
+}
+
+.hero-arch::before {
+  content: "";
+  position: absolute;
+  inset: 74px;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--depth-ink), 0.04);
+}
+
+@keyframes hero-arch-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-drift,
+  .hero-orb,
+  .hero-glow {
+    animation: none;
+  }
+}
+
