@@ -75,6 +75,28 @@
     text-wrap: balance;
   }
 
+  /* Typewriter caret — a slim bar matching the cap height, gentle blink. */
+  .tw-caret {
+    display: inline-block;
+    width: 0.055em;
+    height: 0.82em;
+    margin-left: 0.06em;
+    vertical-align: baseline;
+    border-radius: 1px;
+    background: currentColor;
+    animation: tw-blink 1.05s ease-in-out infinite;
+  }
+  @keyframes tw-blink {
+    0%,
+    42% {
+      opacity: 1;
+    }
+    58%,
+    100% {
+      opacity: 0;
+    }
+  }
+
   /* Liquid Glass on graphite — luminous edge-lit panels (VisionOS at night):
      - deep backdrop blur lifts whatever glows behind (the silk, the blooms),
      - a bright specular line along the top edge catches the light,

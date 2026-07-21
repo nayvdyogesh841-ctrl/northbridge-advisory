@@ -8,6 +8,7 @@ import { Container } from "@/components/Container";
 import { CountUpStat } from "@/components/CountUpStat";
 import { ArrowRight } from "@/components/Icons";
 import { Magnetic } from "@/components/Magnetic";
+import { Typewriter } from "@/components/Typewriter";
 import { WordReveal } from "@/components/WordReveal";
 import { heroServiceTags, heroStats, site } from "@/lib/content";
 import { easePremium } from "@/lib/motion";
@@ -107,21 +108,23 @@ export function Hero() {
             </span>
           </motion.div>
 
-          {/* The line lands first; the highlighted run follows a beat later. */}
-          <WordReveal
-            as="h1"
-            trigger="mount"
-            delay={0.5}
-            className="display-balance mt-7 font-display text-5xl font-semibold leading-[1.03] tracking-tight text-ink sm:text-6xl lg:text-7xl"
-            segments={[
-              { text: "Chartered Accountants for India’s" },
-              {
-                text: "founders & growing businesses",
-                className: "italic text-ink-muted",
-                emphasisDelay: 0.16,
-              },
-            ]}
-          />
+          {/* Static line reveals word-by-word, then the final phrase rotates. */}
+          <h1 className="display-balance mt-7 font-display text-5xl font-semibold leading-[1.03] tracking-tight text-ink sm:text-6xl lg:text-7xl">
+            <WordReveal
+              as="span"
+              trigger="mount"
+              delay={0.5}
+              segments={[{ text: "Chartered Accountants for" }]}
+            />{" "}
+            <motion.span
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.95, ease: easePremium }}
+              className="italic text-ink-muted"
+            >
+              <Typewriter />
+            </motion.span>
+          </h1>
 
           <motion.p
             variants={rise}
