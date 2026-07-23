@@ -69,7 +69,7 @@ export function Hero() {
     <section
       ref={sectionRef}
       id="top"
-      className="hero-grain relative flex min-h-[100svh] flex-col overflow-hidden pt-32 sm:pt-36"
+      className="hero-grain relative flex min-h-[88svh] flex-col overflow-hidden pt-24 sm:min-h-[100svh] sm:pt-36"
     >
       {/* Graphite atmosphere — ceiling light, ember/violet blooms, structure. */}
       <div aria-hidden className="hero-stage" />
@@ -190,7 +190,7 @@ export function Hero() {
           initial="hidden"
           animate="visible"
           transition={{ duration: 0.9, delay: 1.86, ease: easePremium }}
-          className="mb-10 mt-auto pt-16 sm:mb-12"
+          className="mb-8 mt-10 pt-8 sm:mb-12 sm:mt-auto sm:pt-16"
         >
           <div className="mx-auto grid max-w-4xl grid-cols-2 gap-3 sm:grid-cols-4">
             {heroStats.map((stat, i) => (

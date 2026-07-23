@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { cn } from "@/utils/cn";
 
 const DEFAULT_PHRASES = [
@@ -20,53 +20,85 @@ type TypewriterProps = {
 /**
  * Premium rotating typewriter for the hero headline's final phrase.
  *
- * - No layout shift: every phrase is rendered invisibly, stacked in a single
- *   CSS-grid cell, so the box always reserves the widest/tallest phrase; the
- *   visible typed text overlays that reserved cell.
- * - Human-like cadence (jittered type/delete speeds), 2s dwell at each phrase.
- * - SSR renders the first phrase in full, so hydration matches and the caret
- *   simply begins from there — no flash.
- * - Timers only (no rAF, no per-frame work); one setState per keystroke.
- * - Under prefers-reduced-motion it stays on a single static phrase.
+ * Performance:
+ * - starts only after the browser is idle (requestIdleCallback, ~≤600ms) so it
+ *   never competes with first paint or the Spline load;
+ * - drives updates with requestAnimationFrame and writes to the DOM via a ref
+ *   (textContent) — zero React re-renders per character, so no dropped frames;
+ * - a single scheduled mutation per keystroke (rAF only advances a clock).
+ *
+ * No layout shift: every phrase is rendered invisibly, stacked in one grid cell,
+ * so the box always reserves the widest/tallest phrase.
+ *
+ * SSR renders the first phrase, so hydration matches; under prefers-reduced-
+ * motion it simply stays on that static phrase.
  */
 export function Typewriter({ phrases = DEFAULT_PHRASES, className }: TypewriterProps) {
-  const [text, setText] = useState(phrases[0]);
+  const textRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const el = textRef.current;
+    if (!el) return;
 
     let phrase = 0;
-    let chars = phrases[0].length; // start from the fully-typed first phrase
-    let deleting = true; // ...then dwell and delete
-    let timer: ReturnType<typeof setTimeout>;
+    let chars = phrases[0].length; // start fully typed on the first phrase
+    let deleting = true; // ...dwell, then delete
+    let nextAt = 0;
+    let raf = 0;
+    let stopped = false;
 
-    const tick = () => {
+    const step = (now: number) => {
       const word = phrases[phrase];
-
       if (!deleting) {
         chars += 1;
-        setText(word.slice(0, chars));
+        el.textContent = word.slice(0, chars);
         if (chars >= word.length) {
           deleting = true;
-          timer = setTimeout(tick, 2000); // dwell ~2s at the full phrase
-          return;
+          nextAt = now + 2000; // dwell ~2s at the full phrase
+        } else {
+          nextAt = now + 68 + Math.random() * 46; // human typing cadence
         }
-        timer = setTimeout(tick, 68 + Math.random() * 46); // human typing
       } else {
         chars -= 1;
-        setText(word.slice(0, chars));
+        el.textContent = word.slice(0, chars);
         if (chars <= 0) {
           deleting = false;
           phrase = (phrase + 1) % phrases.length;
-          timer = setTimeout(tick, 420); // brief beat before the next phrase
-          return;
+          nextAt = now + 420; // brief beat before the next phrase
+        } else {
+          nextAt = now + 34 + Math.random() * 26; // faster delete
         }
-        timer = setTimeout(tick, 34 + Math.random() * 26); // faster delete
       }
     };
 
-    timer = setTimeout(tick, 2000); // initial dwell on the first phrase
-    return () => clearTimeout(timer);
+    const loop = (now: number) => {
+      if (stopped) return;
+      if (now >= nextAt) step(now);
+      raf = requestAnimationFrame(loop);
+    };
+
+    const start = () => {
+      nextAt = performance.now() + 2000; // initial dwell on the first phrase
+      raf = requestAnimationFrame(loop);
+    };
+
+    // Defer the whole thing until the browser is idle (300–600ms after load).
+    const w = window as typeof window & {
+      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+    };
+    let startTimer: ReturnType<typeof setTimeout> | undefined;
+    if (w.requestIdleCallback) {
+      w.requestIdleCallback(() => !stopped && start(), { timeout: 600 });
+    } else {
+      startTimer = setTimeout(() => !stopped && start(), 400);
+    }
+
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(raf);
+      if (startTimer) clearTimeout(startTimer);
+    };
   }, [phrases]);
 
   return (
@@ -79,9 +111,9 @@ export function Typewriter({ phrases = DEFAULT_PHRASES, className }: TypewriterP
           {p}
         </span>
       ))}
-      {/* Visible typed text + blinking caret. */}
+      {/* Visible typed text (mutated via ref) + blinking caret. */}
       <span aria-hidden className="[grid-area:1/1]">
-        {text}
+        <span ref={textRef}>{phrases[0]}</span>
         <span className="tw-caret" />
       </span>
     </span>
